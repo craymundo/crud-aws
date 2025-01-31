@@ -1,2 +1,25 @@
-node_modules
-mock.ts
+# Dependencias
+node_modules/
+
+# Archivos de entorno
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Archivos de compilación
+dist/
+build/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de IDE
+.idea/
+.vscode/
+*.swp
+
+.serverless/

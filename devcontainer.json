@@ -1,0 +1,19 @@
+{
+    "name": "CRUD MySQL AWS",
+    "build": {
+      "dockerfile": "Dockerfile"
+    },
+    "settings": {
+      "terminal.integrated.defaultProfile.linux": "bash",
+      "editor.formatOnSave": true
+    },
+    "extensions": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "ms-azuretools.vscode-docker"
+    ],
+    "remoteUser": "node",
+    "forwardPorts": [3000, 3307, 6379],
+    "postCreateCommand": "npm install"
+  }
+  

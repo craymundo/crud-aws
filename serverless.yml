@@ -1,0 +1,319 @@
+service: crud-v8
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  versionFunctions: false
+  environment:
+    DATABASE_HOST: ${env:DATABASE_HOST}
+    DATABASE_USER: ${env:DATABASE_USER}
+    DATABASE_PASSWORD: ${env:DATABASE_PASSWORD}
+    DATABASE_NAME: ${env:DATABASE_NAME}
+    CACHE_HOST: ${env:CACHE_HOST}
+    CACHE_PORT: ${env:CACHE_PORT}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - ec2:CreateNetworkInterface
+        - ec2:DescribeNetworkInterfaces
+        - ec2:DeleteNetworkInterface
+      Resource: "*"
+
+  vpc:
+    securityGroupIds:
+      - !Ref LambdaSecurityGroup
+    subnetIds:
+      - !Ref PrivateSubnet1
+      - !Ref PrivateSubnet2
+
+functions:
+  ping:
+    handler: dist/handlers/ping.ping
+    timeout: 29
+    memorySize: 1024
+    runtime: nodejs22.x
+    events:
+      - http:
+          path: ping
+          method: get
+
+  getItems:
+    handler: dist/handlers/getItems.getItems
+    timeout: 29
+    memorySize: 1024
+    runtime: nodejs22.x
+    events:
+      - http:
+          path: items
+          method: get
+
+  createItem:
+    handler: dist/handlers/createItem.createItem
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: items
+          method: post
+
+  updateItem:
+    handler: dist/handlers/updateItem.updateItem
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: items/{id}
+          method: put
+
+  deleteItem:
+    handler: dist/handlers/deleteItem.deleteItem
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: items/{id}
+          method: delete
+
+  getItem:
+    handler: dist/handlers/getItem.getItem
+    timeout: 29
+    memorySize: 1024
+    events:
+      - http:
+          path: items/{id}
+          method: get
+resources:
+  Resources:
+    # VPC
+    CustomVPC:
+      Type: AWS::EC2::VPC
+      Properties:
+        CidrBlock: 10.1.0.0/16
+        EnableDnsSupport: true
+        EnableDnsHostnames: true
+        Tags:
+          - Key: Name
+            Value: CustomVPC-crud-v8
+
+    # Subredes
+    PublicSubnet1:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref CustomVPC
+        CidrBlock: 10.1.10.0/24
+        MapPublicIpOnLaunch: true
+        AvailabilityZone: us-east-1a
+        Tags:
+          - Key: Name
+            Value: PublicSubnet1-crud-v8
+
+    PublicSubnet2:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref CustomVPC
+        CidrBlock: 10.1.20.0/24
+        MapPublicIpOnLaunch: true
+        AvailabilityZone: us-east-1b
+        Tags:
+          - Key: Name
+            Value: PublicSubnet2-crud-v8
+
+    # Private Subnets
+    PrivateSubnet1:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref CustomVPC
+        CidrBlock: 10.1.30.0/24
+        AvailabilityZone: us-east-1a
+        Tags:
+          - Key: Name
+            Value: PrivateSubnet1-crud-v8
+
+    PrivateSubnet2:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref CustomVPC
+        CidrBlock: 10.1.40.0/24
+        AvailabilityZone: us-east-1b
+        Tags:
+          - Key: Name
+            Value: PrivateSubnet2-crud-v8
+
+    # Internet Gateway
+    InternetGateway:
+      Type: AWS::EC2::InternetGateway
+      Properties:
+        Tags:
+          - Key: Name
+            Value: InternetGateway-crud-v8
+
+    AttachGateway:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+        VpcId: !Ref CustomVPC
+        InternetGatewayId: !Ref InternetGateway
+
+    # NAT Gateway
+    ElasticIP:
+      Type: AWS::EC2::EIP
+      DependsOn: AttachGateway
+      Properties:
+        Domain: vpc
+
+    NatGateway:
+      Type: AWS::EC2::NatGateway
+      Properties:
+        SubnetId: !Ref PublicSubnet1
+        AllocationId: !GetAtt ElasticIP.AllocationId
+        Tags:
+          - Key: Name
+            Value: NatGateway-crud-v8
+
+    # Route Tables
+    PublicRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref CustomVPC
+        Tags:
+          - Key: Name
+            Value: PublicRouteTable-crud-v8
+
+    PublicRoute:
+      Type: AWS::EC2::Route
+      Properties:
+        RouteTableId: !Ref PublicRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId: !Ref InternetGateway
+
+    # Associate public subnets with public route table
+    PublicSubnet1RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref PublicSubnet1
+        RouteTableId: !Ref PublicRouteTable
+
+    PublicSubnet2RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref PublicSubnet2
+        RouteTableId: !Ref PublicRouteTable
+
+    PrivateRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref CustomVPC
+        Tags:
+          - Key: Name
+            Value: PrivateRouteTable-crud-v8
+
+    PrivateRoute:
+      Type: AWS::EC2::Route
+      Properties:
+        RouteTableId: !Ref PrivateRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        NatGatewayId: !Ref NatGateway
+
+    PrivateSubnet1RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref PrivateSubnet1
+        RouteTableId: !Ref PrivateRouteTable
+
+    PrivateSubnet2RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref PrivateSubnet2
+        RouteTableId: !Ref PrivateRouteTable
+
+    # Grupos de Seguridad
+    LambdaSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: "Security group for Lambda"
+        VpcId: !Ref CustomVPC
+        SecurityGroupEgress:
+          - IpProtocol: -1
+            CidrIp: 0.0.0.0/0
+
+    RedisSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: "Security group for Redis"
+        VpcId: !Ref CustomVPC
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 6379
+            ToPort: 6379
+            CidrIp: 10.1.0.0/16
+    # Redis
+    CacheCluster:
+      Type: AWS::ElastiCache::CacheCluster
+      Properties:
+        Engine: redis
+        CacheNodeType: cache.t3.micro
+        NumCacheNodes: 1
+        VpcSecurityGroupIds:
+          - !Ref RedisSecurityGroup
+        CacheSubnetGroupName: !Ref CacheSubnetGroup
+
+    CacheSubnetGroup:
+      Type: AWS::ElastiCache::SubnetGroup
+      Properties:
+        CacheSubnetGroupName: "RedisSubnetGroup-crud-v8"
+        Description: "Subnet group for Redis"
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+
+    # Base de datos (RDS)
+    AuroraCluster:
+      Type: AWS::RDS::DBCluster
+      Properties:
+        Engine: aurora-mysql
+        EngineMode: provisioned
+        DBClusterIdentifier: AuroraCluster-crud-v8
+        MasterUsername: admin
+        MasterUserPassword: admin123456
+        DatabaseName: dbtest
+        VpcSecurityGroupIds:
+          - !Ref DatabaseSecurityGroup # Se debe asignar aquí
+        DBSubnetGroupName: !Ref DBSubnetGroup
+
+    AuroraInstance:
+      Type: AWS::RDS::DBInstance
+      Properties:
+        DBInstanceIdentifier: AuroraInstance-crud-v8
+        Engine: aurora-mysql
+        DBClusterIdentifier: !Ref AuroraCluster
+        DBInstanceClass: db.t3.medium
+        PubliclyAccessible: true
+        DBSubnetGroupName: !Ref DBSubnetGroup # Subred pública
+
+    DatabaseSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: "Security group for Public Database"
+        VpcId: !Ref CustomVPC
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 3306
+            ToPort: 3306
+            CidrIp: 179.6.3.170/32 # Permite acceso desde tu PC
+          - IpProtocol: tcp
+            FromPort: 3306
+            ToPort: 3306
+            CidrIp: 10.1.0.0/16
+        SecurityGroupEgress:
+          - IpProtocol: -1
+            CidrIp: 0.0.0.0/0
+    # Mover aquí el grupo de seguridad
+
+    DBSubnetGroup:
+      Type: AWS::RDS::DBSubnetGroup
+      Properties:
+        DBSubnetGroupDescription: "Public Subnet group for RDS"
+        SubnetIds:
+          - !Ref PublicSubnet1
+          - !Ref PublicSubnet2
+        DBSubnetGroupName: "DBSubnetGroup-crud-v8"

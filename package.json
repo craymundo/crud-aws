@@ -1,22 +1,51 @@
 {
-  "name": "coding-interview-backend-level-3",
+  "name": "crud-mysql-aws",
   "version": "1.0.0",
-  "description": "Coding Interview Backend Level 3",
-  "main": "src/index.ts",
+  "main": "index.js",
   "scripts": {
-    "test": "jest e2e"
+    "dev:serverless": "serverless offline",
+    "build-deploy": "npx tsc && serverless deploy",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "lint:cache": "eslint . --cache --cache-location .eslintcache --fix",
+    "lint": "eslint . --debug",
+    "format": "prettier --write .",
+    "start:local": "ts-node src/server.ts",
+    "test:e2e": "cross-env NODE_ENV=test jest"
   },
-  "author": "El Dorado Dev Team",
+  "keywords": [],
+  "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "@swc/core": "^1.7.2",
-    "@swc/jest": "^0.2.36",
-    "@types/jest": "^29.5.12",
-    "jest": "^29.7.0",
-    "mocha": "^10.7.0",
-    "typescript": "^5.5.4"
-  },
+  "description": "",
   "dependencies": {
-    "@hapi/hapi": "^21.3.10"
+    "@hapi/hapi": "^21.3.12",
+    "@hapi/inert": "^7.1.0",
+    "@hapi/vision": "^7.0.3",
+    "@types/node": "^22.12.0",
+    "dotenv": "^16.4.7",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0",
+    "mysql2": "^3.12.0",
+    "redis": "^4.7.0",
+    "reflect-metadata": "^0.2.2",
+    "serverless": "^4.5.0",
+    "serverless-offline": "^14.4.0",
+    "serverless-openapi-documentation": "^0.4.0",
+    "typeorm": "^0.3.20",
+    "typescript": "^5.7.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "@types/jest": "^29.5.14",
+    "@types/mocha": "^10.0.10",
+    "cross-env": "^7.0.3",
+    "eslint": "^9.19.0",
+    "globals": "^15.14.0",
+    "jest": "^29.7.0",
+    "mocha": "^11.1.0",
+    "prettier": "^3.4.2",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript-eslint": "^8.22.0"
   }
 }
